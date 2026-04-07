@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import {
   ClipboardList, Users, CheckCircle2, XCircle,
-  UserCheck, UserX, Clock, AlertTriangle, ChevronDown, ChevronUp, Shield
+  UserCheck, UserX, Clock, AlertTriangle, ChevronDown, ChevronUp, Shield, Loader2
 } from 'lucide-react';
 import adminService from '../../services/adminService';
 import RemarksModal from '../../components/RemarksModal';
@@ -174,9 +174,9 @@ const PrincipalRequestsTab = () => {
       <RemarksModal
         isOpen={modal.open}
         onClose={() => setModal({ open: false, action: null, id: null, name: '' })}
-        onConfirm={handleConfirm}
-        action={modal.action}
-        applicantName={modal.name}
+        onSubmit={handleConfirm}
+        actionType={modal.action}
+        customActionLabel={modal.action === 'approve' ? 'Authorize Executive Leave' : 'Confirm Terminal Rejection'}
       />
     </div>
   );
@@ -187,13 +187,20 @@ const UsersTab = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Modal states
+  const [modal, setModal] = useState({ open: false, user: null });
+  const [formData, setFormData] = useState({
+    name: '', email: '', password: '', role: 'student', department_id: '', class: '', roll_number: ''
+  });
 
   const fetchUsers = async () => {
     try {
       const { data } = await adminService.getAllUsers();
       setUsers(data.users);
     } catch {
-      toast.error('Failed to load users.');
+      toast.error('Failed to load user registry.');
     } finally {
       setLoading(false);
     }
@@ -201,13 +208,58 @@ const UsersTab = () => {
 
   useEffect(() => { fetchUsers(); }, []);
 
+  const handleOpenModal = (user = null) => {
+    if (user) {
+      setModal({ open: true, user });
+      setFormData({
+        name: user.name, email: user.email, password: '', role: user.role,
+        department_id: user.department_id || '', class: user.class || '', roll_number: user.roll_number || ''
+      });
+    } else {
+      setModal({ open: true, user: null });
+      setFormData({ name: '', email: '', password: '', role: 'student', department_id: '', class: '', roll_number: '' });
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      if (modal.user) {
+        await adminService.updateUser(modal.user.id, formData);
+        toast.success('Identity node updated.');
+      } else {
+        await adminService.createUser(formData);
+        toast.success('New identity provisioned.');
+      }
+      setModal({ open: false, user: null });
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Operation failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Delete this identity node? Permamently removes all associated data.')) {
+      try {
+        await adminService.deleteUser(id);
+        toast.success('Identity purged.');
+        fetchUsers();
+      } catch {
+        toast.error('Purge failed.');
+      }
+    }
+  };
+
   const handleToggle = async (id, name, currentStatus) => {
     try {
       await adminService.toggleUserStatus(id);
       toast.success(`${name} ${currentStatus ? 'deactivated' : 'activated'} successfully.`);
       fetchUsers();
     } catch {
-      toast.error('Failed to update user status.');
+      toast.error('Status update failed.');
     }
   };
 
@@ -230,17 +282,26 @@ const UsersTab = () => {
 
   return (
     <div>
-      {/* Filter pills */}
-      <div className="flex gap-3 mb-8 flex-wrap">
-        {['all', 'student', 'staff', 'hod', 'principal'].map(r => (
-          <button
-            key={r}
-            onClick={() => setFilter(r)}
-            className={`px-6 py-3 rounded-2xl text-[10px] font-black capitalize transition-all uppercase tracking-widest ${filter === r ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 active:scale-95' : 'bg-white text-gray-400 border border-gray-100 hover:border-indigo-400 hover:text-indigo-600 shadow-sm'}`}
-          >
-            {r === 'all' ? `All Nodes (${users.length})` : `${r} (${users.filter(u => u.role === r).length})`}
-          </button>
-        ))}
+      {/* Header & Add Button */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+        <div className="flex gap-3 flex-wrap">
+          {['all', 'student', 'staff', 'hod', 'principal'].map(r => (
+            <button
+              key={r}
+              onClick={() => setFilter(r)}
+              className={`px-6 py-3 rounded-2xl text-[10px] font-black capitalize transition-all uppercase tracking-widest ${filter === r ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 active:scale-95' : 'bg-white text-gray-400 border border-gray-100 hover:border-indigo-400 hover:text-indigo-600 shadow-sm'}`}
+            >
+              {r === 'all' ? `All Nodes (${users.length})` : `${r} (${users.filter(u => u.role === r).length})`}
+            </button>
+          ))}
+        </div>
+        <button 
+          onClick={() => handleOpenModal()}
+          className="flex items-center justify-center space-x-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 transition-all active:scale-95 group"
+        >
+          <Users size={18} className="group-hover:scale-110 transition-transform" />
+          <span className="uppercase text-[10px] tracking-widest">Provision Node</span>
+        </button>
       </div>
 
       <div className="overflow-x-auto rounded-[32px] border border-gray-100 bg-white shadow-sm">
@@ -268,20 +329,111 @@ const UsersTab = () => {
                   </span>
                 </td>
                 <td className="px-8 py-5 text-right">
-                  {u.role !== 'admin' && (
-                    <button
-                      onClick={() => handleToggle(u.id, u.name, u.is_active)}
-                      className={`inline-flex items-center gap-2 px-4 py-2 text-[10px] font-black rounded-xl transition-all uppercase tracking-widest shadow-sm active:scale-95 ${u.is_active ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'}`}
-                    >
-                      {u.is_active ? <><UserX size={14} /> Deactivate</> : <><UserCheck size={14} /> Activate</>}
-                    </button>
-                  )}
+                  <div className="flex items-center justify-end gap-2">
+                    {u.role !== 'admin' && (
+                      <>
+                        <button
+                          onClick={() => handleToggle(u.id, u.name, u.is_active)}
+                          title={u.is_active ? 'Deactivate' : 'Activate'}
+                          className={`p-2 rounded-xl transition-all ${u.is_active ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
+                        >
+                          {u.is_active ? <UserX size={16} /> : <UserCheck size={16} />}
+                        </button>
+                        <button
+                          onClick={() => handleOpenModal(u)}
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                        >
+                          <Users size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(u.id)}
+                          className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Add/Edit Modal */}
+      {modal.open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[40px] w-full max-w-2xl shadow-2xl p-10 relative overflow-hidden">
+            <button onClick={() => setModal({ open: false, user: null })} className="absolute top-8 right-8 text-gray-400 hover:text-gray-600"><X size={24}/></button>
+            <div className="mb-8">
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight italic">{modal.user ? 'Adjust Identity Node' : 'Provision New Identity'}</h3>
+              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">Institutional Hierarchy Management</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Full Legal Name</label>
+                   <input required type="text" value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-indigo-400 outline-none transition-all font-bold text-sm" placeholder="e.g. John Doe"/>
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">System Email Address</label>
+                   <input required type="email" value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-indigo-400 outline-none transition-all font-bold text-sm" placeholder="user@college.edu"/>
+                </div>
+                {!modal.user && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Initial Password</label>
+                    <input required type="password" value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-indigo-400 outline-none transition-all font-bold text-sm" placeholder="********"/>
+                  </div>
+                )}
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Institutional Role</label>
+                   <select value={formData.role} onChange={e=>setFormData({...formData, role: e.target.value})} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-indigo-400 outline-none transition-all font-black text-sm">
+                      <option value="student">Student</option>
+                      <option value="staff">Staff</option>
+                      <option value="hod">HOD</option>
+                      <option value="principal">Principal</option>
+                      <option value="admin">Admin</option>
+                   </select>
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Department Unit</label>
+                   <select value={formData.department_id} onChange={e=>setFormData({...formData, department_id: e.target.value})} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-indigo-400 outline-none transition-all font-black text-sm">
+                      <option value="">Global/None</option>
+                      <option value="1">Computer Science</option>
+                      <option value="2">Mechanical Engineering</option>
+                      <option value="3">Electronics Communication</option>
+                   </select>
+                </div>
+                {formData.role === 'student' && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Target Class</label>
+                      <input type="text" value={formData.class} onChange={e=>setFormData({...formData, class: e.target.value})} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-indigo-400 outline-none transition-all font-bold text-sm" placeholder="e.g. III CSE A"/>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Roll ID</label>
+                      <input type="text" value={formData.roll_number} onChange={e=>setFormData({...formData, roll_number: e.target.value})} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-indigo-400 outline-none transition-all font-bold text-sm" placeholder="e.g. 101"/>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="pt-6 border-t border-gray-50">
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-3xl font-black shadow-2xl shadow-indigo-100 transition-all active:scale-[0.98] uppercase tracking-widest text-xs flex items-center justify-center space-x-3 disabled:opacity-50"
+                >
+                  {isSubmitting && <Loader2 className="animate-spin" size={16} />}
+                  <span>{isSubmitting ? 'Processing Identity...' : (modal.user ? 'Commit Database Changes' : 'Execute System Provisioning')}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

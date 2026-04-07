@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 const MyLeavesPage = () => {
   const { user } = useAuth();
   const [leaves, setLeaves] = useState([]);
+  const [filterType, setFilterType] = useState('ALL');
   const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -80,16 +81,33 @@ const MyLeavesPage = () => {
       </div>
 
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
+        <div className="p-6 border-b border-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50/30">
           <h3 className="text-lg font-black text-gray-800 tracking-tight flex items-center">
             Detailed Transactions
           </h3>
-          <div className="flex items-center space-x-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
-            <Filter size={14} />
-            <span>All Statuses</span>
+          
+          {/* Filter Pills */}
+          <div className="flex items-center p-1 bg-white border border-gray-100 rounded-2xl shadow-sm w-fit">
+            {['ALL', 'CL', 'ML', 'OD'].map((type) => (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  filterType === type 
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
           </div>
         </div>
-        <MyLeaveTable leaves={leaves} role={user?.role} onCancel={handleCancelLeave} />
+        <MyLeaveTable 
+          leaves={filterType === 'ALL' ? leaves : leaves.filter(l => l.leave_type === filterType)} 
+          role={user?.role} 
+          onCancel={handleCancelLeave} 
+        />
       </div>
 
       <ApplyLeaveModal 

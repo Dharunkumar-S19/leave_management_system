@@ -17,7 +17,7 @@ const AllLeavesPage = () => {
     setLoading(true);
     try {
       const response = await adminService.getAllLeaves(filters);
-      setReportData(response.data.data);
+      setReportData(response.data.leaves || []);
     } catch (err) {
       toast.error('Failed to load leave records');
     } finally {

@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 const StudentDashboard = () => {
   const { user } = useAuth();
   const [leaves, setLeaves] = useState([]);
+  const [filterType, setFilterType] = useState('ALL');
   const [upcomingLeaves, setUpcomingLeaves] = useState([]);
   const [balance, setBalance] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -90,14 +91,35 @@ const StudentDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* Main history - 2/3 width */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center">
               <Clock size={20} className="mr-2 text-blue-600" />
               My Leave Requests
             </h3>
-            <button className="text-sm font-bold text-blue-600 hover:underline">View All</button>
+            
+            {/* Filter Pills */}
+            <div className="flex items-center p-1 bg-gray-100 rounded-2xl w-fit">
+              {['ALL', 'CL', 'ML', 'OD'].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    filterType === type 
+                      ? 'bg-white text-blue-600 shadow-sm' 
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
           </div>
-          <MyLeaveTable leaves={leaves} role="student" onCancel={handleCancelLeave} />
+
+          <MyLeaveTable 
+            leaves={filterType === 'ALL' ? leaves : leaves.filter(l => l.leave_type === filterType)} 
+            role="student" 
+            onCancel={handleCancelLeave} 
+          />
         </div>
 
         {/* Upcoming Leaves - 1/3 width */}

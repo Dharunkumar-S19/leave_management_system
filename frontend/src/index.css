@@ -1,14 +1,24 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
     --primary: #2563eb;
     --secondary: #4b5563;
   }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+  }
 }
 
-body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+.font-admin {
+  font-family: 'Space Grotesk', sans-serif;
 }
 
 /* Custom scrollbar for better aesthetics */

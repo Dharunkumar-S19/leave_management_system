@@ -30,7 +30,7 @@ const AdminLayout = ({ children }) => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans">
+    <div className="min-h-screen bg-gray-50 flex font-admin tracking-tight">
       {/* Sidebar Overlay for Mobile */}
       {isSidebarOpen && (
         <div 

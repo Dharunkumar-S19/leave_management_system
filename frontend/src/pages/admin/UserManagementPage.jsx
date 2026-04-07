@@ -71,22 +71,27 @@ const UserManagementPage = () => {
     }
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       if (editingUser) {
         await adminService.updateUser(editingUser.id, formData);
-        toast.success('User details updated');
+        toast.success('User details updated successfully');
       } else {
         await adminService.createUser(formData);
-        toast.success('New user account provisioned');
+        toast.success('New user account provisioned successfully');
       }
       setIsModalOpen(false);
       setEditingUser(null);
       setFormData({ name: '', email: '', password: '', role: 'student', department_id: '', class: '', roll_number: '' });
       fetchUsers();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Operation failed');
+      toast.error(err.response?.data?.message || 'Operation failed. Please check your inputs.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -299,8 +304,13 @@ const UserManagementPage = () => {
               </div>
 
               <div className="pt-6 border-t border-gray-50">
-                <button type="submit" className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-3xl font-black shadow-2xl shadow-indigo-100 transition-all active:scale-[0.98] uppercase tracking-widest text-xs">
-                  {editingUser ? 'Commit Database Changes' : 'Execute System Provisioning'}
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-3xl font-black shadow-2xl shadow-indigo-100 transition-all active:scale-[0.98] uppercase tracking-widest text-xs flex items-center justify-center space-x-3 disabled:opacity-50"
+                >
+                  {isSubmitting && <Loader2 className="animate-spin" size={16} />}
+                  <span>{isSubmitting ? 'Communicating with Central Node...' : (editingUser ? 'Commit Database Changes' : 'Execute System Provisioning')}</span>
                 </button>
               </div>
             </form>

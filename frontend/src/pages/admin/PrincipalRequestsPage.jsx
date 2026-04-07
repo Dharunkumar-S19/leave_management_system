@@ -12,7 +12,7 @@ const PrincipalRequestsPage = () => {
     setLoading(true);
     try {
       const { data } = await adminService.getPrincipalRequests();
-      setRequests(data);
+      setRequests(data.requests || []);
     } catch (err) {
       toast.error('Failed to load principal requests');
     } finally {
